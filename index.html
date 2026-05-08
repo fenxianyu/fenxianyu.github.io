@@ -1,16 +1,148 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的第一个网页</title>
+    <title>我的思维树</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        /* 简单的输入框样式 */
+        #input-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        input { padding: 5px; }
+        button { padding: 5px 10px; cursor: pointer; }
+    </style>
 </head>
 <body>
-    <h1>🎉 恭喜！网站上线成功！</h1>
-    <p>这是我自己写的第一个网页内容。</p>
-    <p>工作年限：5年</p>
-    <p>岗位：中级/高级后端工程师</p>
-    <p>1.需要有Java大型项目重构经验</p>
-    <p>2.核心基础:Java和Python</p>
+    <!-- 输入框区域 -->
+    <div id="input-container">
+        <input type="text" id="topic-input" placeholder="输入一个新主题...">
+        <button id="add-btn">提交主题</button>
+    </div>
+
+    <!-- 引入 Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. 创建场景、相机和渲染器
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe0f7fa); // 设置一个清新的背景色
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 10); // 调整相机位置，方便俯视
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. 添加灯光 (让树有立体感)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // 环境光
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8); // 平行光模拟太阳
+        directionalLight.position.set(5, 10, 7);
+        scene.add(directionalLight);
+
+        // 3. 添加轨道控制器 (实现旋转、缩放)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // 增加一点阻尼感，操作更顺滑
+
+        // 4. 树的逻辑
+        // 用一个数组来保存我们提交的所有主题
+        const topics = ['初始想法']; 
+
+        // 创建一个组来存放整棵树
+        const treeGroup = new THREE.Group();
+        scene.add(treeGroup);
+
+        // 渲染树的函数
+        function renderTree() {
+            // 每次渲染前，先把旧的树清空
+            while(treeGroup.children.length > 0){ 
+                treeGroup.remove(treeGroup.children[0]); 
+            }
+
+            // 画树干
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 3, 32);
+            const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 1.5;
+            treeGroup.add(trunk);
+
+            // 遍历主题数组，把每个主题变成树上的“果实”
+            topics.forEach((topic, index) => {
+                // 简单的螺旋排列算法，让果实绕着树干长
+                const angle = index * 0.8; 
+                const radius = 1.2;
+                const height = 2.5 + (index * 0.4); // 越后面的主题长得越高
+
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = height;
+
+                // 画果实（球体）
+                const fruitGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+                const fruitMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+                const fruit = new THREE.Mesh(fruitGeometry, fruitMaterial);
+                fruit.position.set(x, y, z);
+                treeGroup.add(fruit);
+
+                // 画连接树枝（圆柱体）
+                const branchGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 8);
+                const branchMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+                const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+                
+                // 简单的数学计算，让树枝连接树干和果实
+                branch.position.set(x / 2, (y + 1.5) / 2, z / 2);
+                branch.lookAt(x, y, z);
+                branch.rotateX(Math.PI / 2);
+                treeGroup.add(branch);
+            });
+        }
+
+        // 初始渲染一次
+        renderTree();
+
+        // 5. 绑定输入框的点击事件
+        document.getElementById('add-btn').addEventListener('click', () => {
+            const input = document.getElementById('topic-input');
+            const value = input.value.trim();
+            if (value) {
+                topics.push(value); // 把新主题加入数组
+                renderTree();       // 重新渲染树
+                input.value = '';   // 清空输入框
+            }
+        });
+
+        // 6. 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // 更新控制器状态
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 窗口大小改变时自适应
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
